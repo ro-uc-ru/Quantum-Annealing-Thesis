@@ -1,0 +1,11 @@
+# Generated artifacts stay outside source dirs (constitution §14).
+build/
+bin/
+results/
+*.log
+.DS_Store
+.opencode/
+.vscode/
+.idea/
+Testing
+
