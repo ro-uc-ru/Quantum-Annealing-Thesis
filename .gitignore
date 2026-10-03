@@ -8,4 +8,5 @@ results/
 .vscode/
 .idea/
 Testing
-
+.agents
+.claude
