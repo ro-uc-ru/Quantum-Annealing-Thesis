@@ -11,11 +11,17 @@
 - CPU is the default backend; Metal is an optional future optimization, never a requirement.
 
 ## Mandatory Reading and Change Control
-- Before any task, read `docs/constitution.md` and `specs/active-spec.md` in full.
-- Do not implement code, advance a specification, or change `specs/`, `docs/constitution.md`, or this file without explicit user permission.
-- Spec lifecycle: new specs start as Draft; on explicit user approval record `Status: Approved (date)` in the spec and move `specs/active-spec.md` to it. The active spec is the source of truth for scope, RFs, and completion criteria.
-- If a requested change conflicts with either document, stop and explain the conflict.
-- Keep the active specification, tests, implementation, and experiment outputs traceable to one another.
+- Read `docs/constitution.md` and `specs/active-spec.md` in full.
+- Task selection: the target task is the one the user names; otherwise the first unticked task in `tasks.md` whose `After:` tasks are all ticked. Read `tasks.md` only to find it (Grep `- \[ \]`) plus any `Review:` line under it.
+- Then read only what that task cites: Grep `spec.md` for each cited FR/EC ID and read just those sections (ranged Read). Read `plan.md` only for the section matching the task's phase/module. Never read `spec.md` or `plan.md` in full for implementation.
+- Do not list or read other spec directories or explore the repo tree. Open only files the task names or that Grep locates.
+- Do one task, run its "Done when" check, tick it, STOP.
+- Do not implement code, advance a specification, or change `specs/`, `docs/constitution.md`, or this file without explicit user permission. Ticking a task `[x]` is the only allowed edit to `tasks.md`.
+
+## Token Budget
+- Prefer Grep and ranged Read over whole-file reads.
+- Pipe build/test/sanitizer/`leaks` output through `tail -n 40`; expand only on failure.
+- Final report: exact commands, pass/fail, key numbers. No logs, no restating the task.
 
 ## Engineering Style
 - Use standard C; camelCase is preferred. Focus on error handling and memory-leak prevention. Follow `docs/codestyle.md` for naming, `f -> a` spacing, documented `QaStatus` enums, and `goto cleanup` ownership handling.

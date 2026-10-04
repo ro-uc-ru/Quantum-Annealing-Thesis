@@ -167,16 +167,16 @@ be trusted.
 
 ## 5. Definition of Done
 
-- [ ] FR-001..FR-012 covered by tests
-- [ ] EC-001..EC-020 covered by tests
-- [ ] Debug build passes (`cmake -S . -B build -DCMAKE_BUILD_TYPE=Debug && cmake --build build`)
-- [ ] Full `ctest --test-dir build --output-on-failure` green, including
+- [x] FR-001..FR-012 covered by tests
+- [x] EC-001..EC-020 covered by tests
+- [x] Debug build passes (`cmake -S . -B build -DCMAKE_BUILD_TYPE=Debug && cmake --build build`)
+- [x] Full `ctest --test-dir build --output-on-failure` green, including
   `TEST-002-hamiltonian-*` plus non-regression of `TEST-001-states-*`
-- [ ] ASan+UBSan clean on the 002 tests
-- [ ] `leaks --atExit -- ./build/qa-002-demo` clean (representative N=4 run)
-- [ ] Numerical validation holds (`E(k)` exact; dyadic unit-norm applies bit-exact;
+- [x] ASan+UBSan clean on the 002 tests
+- [x] `leaks --atExit -- ./build/qa-002-demo` clean (representative N=4 run)
+- [x] Numerical validation holds (`E(k)` exact; dyadic unit-norm applies bit-exact;
   irrational scalings/linearity within `1e-12`; norm gate enforced; `±0.0` equal)
-- [ ] `results/002-config.csv` present, `v1`, with fields per FR-011
+- [x] `results/002-config.csv` present, `v1`, with fields per FR-011
 
 ## 6. Changelog
 

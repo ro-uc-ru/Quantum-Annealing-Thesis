@@ -4,6 +4,7 @@
 # results/ or *.log, so sanitizer builds reuse a subdirectory of build/.
 #
 # Traceability: spec 001-states, task T01 (build scaffold).
+# Traceability: spec 002-hamiltonian, task T-002 (hamiltonian wiring).
 # Test naming contract, fixed here and consumed by T06-T10:
 #   - CTest test name: the `ctest -R` pattern required by tasks.md T06-T10
 #     (e.g. `001-states-n-gate`).
@@ -108,6 +109,105 @@ set_tests_properties(
     001-states-config
     PROPERTIES LABELS "001-states;phase-4")
 
+# 002-hamiltonian Phase 1 wiring (task T-002, FR-005). Static hamiltonian
+# module linking `qa_core`; `src/hamiltonian/problem.c` is the T-002
+# placeholder translation unit (proves the include chain, claims no
+# behavior). FR-001/FR-002/FR-003/FR-004/FR-006/FR-007/FR-008 behavior arrives
+# with T-003-T-006 (Phase 2).
+add_library(qa_hamiltonian STATIC src/hamiltonian/problem.c)
+target_include_directories(qa_hamiltonian PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)
+target_link_libraries(qa_hamiltonian PUBLIC qa_core)
+qa_configure_target(qa_hamiltonian)
+
+# 002-hamiltonian header test (task T-002, FR-005): self-containment, include
+# guard, and the exact `qaHamiltonianApplyProblem` signature. No operator
+# behavior is exercised here; T-003-T-007 bring the behavior tests.
+add_executable(test-002-hamiltonian tests/hamiltonian/test-problem-header.c)
+target_link_libraries(test-002-hamiltonian PRIVATE qa_hamiltonian)
+qa_configure_target(test-002-hamiltonian)
+add_test(NAME 002-hamiltonian-header COMMAND test-002-hamiltonian)
+set_tests_properties(
+    002-hamiltonian-header
+    PROPERTIES LABELS "002-hamiltonian;phase-1")
+
+# qa-002-demo placeholder (task T-002): builds, links `qa_hamiltonian`, runs,
+# and exits 0. The representative normalized N=4 run (FR-010) arrives with
+# T-008 (Phase 4).
+add_executable(qa-002-demo src/cli/qa-002-demo.c)
+target_link_libraries(qa-002-demo PRIVATE qa_hamiltonian)
+qa_configure_target(qa-002-demo)
+
+# 002-hamiltonian behavior tests, Phase 2-3 (tasks T-003-T-007, one group per
+# task). One binary, one CTest entry per group: each tasks.md `ctest -R
+# 002-hamiltonian-<group>` pattern matches exactly one entry, and the binary
+# prints the `TEST-002-hamiltonian-FR0XX` identifiers on failure.
+add_executable(test-002-hamiltonian-problem tests/hamiltonian/test-problem.c)
+target_link_libraries(test-002-hamiltonian-problem PRIVATE qa_hamiltonian)
+qa_configure_target(test-002-hamiltonian-problem)
+add_test(NAME 002-hamiltonian-n-gate COMMAND test-002-hamiltonian-problem n-gate)
+set_tests_properties(
+    002-hamiltonian-n-gate
+    PROPERTIES LABELS "002-hamiltonian;phase-2")
+add_test(NAME 002-hamiltonian-shape COMMAND test-002-hamiltonian-problem shape)
+set_tests_properties(
+    002-hamiltonian-shape
+    PROPERTIES LABELS "002-hamiltonian;phase-2")
+add_test(NAME 002-hamiltonian-vectors COMMAND test-002-hamiltonian-problem vectors)
+set_tests_properties(
+    002-hamiltonian-vectors
+    PROPERTIES LABELS "002-hamiltonian;phase-2")
+add_test(NAME 002-hamiltonian-domain COMMAND test-002-hamiltonian-problem domain)
+set_tests_properties(
+    002-hamiltonian-domain
+    PROPERTIES LABELS "002-hamiltonian;phase-2")
+add_test(NAME 002-hamiltonian-linearity COMMAND test-002-hamiltonian-problem linearity)
+set_tests_properties(
+    002-hamiltonian-linearity
+    PROPERTIES LABELS "002-hamiltonian;phase-3")
+
+# 002-hamiltonian recorded configuration, Phase 4 (task T-009, FR-011):
+# constitution §13 plus the versioned `v1` CSV with spec_version, N, dim,
+# §7 vectors, git sha, clang version, and CMake flags (seed/schedule/dt
+# are N/A per FR-011). Unlike the 001-states JSON (build tree), the task
+# requires the CSV at `results/002-config.csv`, allowed by the closed
+# ignore list of constitution §14. The script validates its own contract;
+# the versioned source of truth is that script plus this file.
+add_test(NAME 002-hamiltonian-config
+         COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/scripts/record-002-config.sh
+                 ${CMAKE_C_COMPILER} "${QA_BUILD_TYPE}" "${QA_SANITIZE}"
+                 "${CMAKE_C_FLAGS}" ${CMAKE_CURRENT_SOURCE_DIR}
+                 ${CMAKE_CURRENT_SOURCE_DIR}/results/002-config.csv)
+set_tests_properties(
+    002-hamiltonian-config
+    PROPERTIES LABELS "002-hamiltonian;phase-4")
+
+# 001<->002 integration test, Phase 5 (tasks T-011/T-012/T-013, FR-012,
+# EC-018/EC-019/EC-020). Links both modules and builds every EC-018 board
+# with the 001 `withBit` helper before applying `H_problem`; the fixed
+# observable sequence (build id, basis input, apply, oracle + zeros +
+# immutability) is asserted inside the binary with
+# `TEST-002-hamiltonian-FR012` tags. The main entry additionally takes
+# `--record results/002-config.csv` (T-013): the run first requires the
+# FR-011 record to authorize its exact `N`/`dim`/vectors (EC-020) and only
+# then executes the cases, with `DEPENDS` regenerating the record first in
+# full-suite runs.
+add_executable(test-002-hamiltonian-integration tests/hamiltonian/test-integration.c)
+# `qa_core` arrives transitively via `qa_hamiltonian PUBLIC`; listing it
+# again only trips the duplicate-library warning.
+target_link_libraries(test-002-hamiltonian-integration PRIVATE qa_hamiltonian)
+qa_configure_target(test-002-hamiltonian-integration)
+add_test(NAME 002-hamiltonian-integration
+         COMMAND test-002-hamiltonian-integration --record
+                 ${CMAKE_CURRENT_SOURCE_DIR}/results/002-config.csv)
+set_tests_properties(
+    002-hamiltonian-integration
+    PROPERTIES DEPENDS 002-hamiltonian-config
+               LABELS "002-hamiltonian;phase-5")
+add_test(NAME 002-hamiltonian-integration-build-failure COMMAND test-002-hamiltonian-integration build-failure)
+set_tests_properties(
+    002-hamiltonian-integration-build-failure
+    PROPERTIES LABELS "002-hamiltonian;phase-5")
+
 # Public-header gate (tasks T02). Every public header must (a) compile as the
 # first include of a translation unit, codestyle §3, and (b) satisfy the
 # constitution §6 documentation check. The list is explicit and complete on
@@ -139,3 +239,27 @@ set_tests_properties(
 set_tests_properties(
     001-states-header
     PROPERTIES LABELS "001-states;phase-1")
+
+# 002-hamiltonian public-header gate (task T-002, Phase 1). Same contract as
+# the 001-states gate above (standalone compile + constitution §6 docs
+# check), with the `002-hamiltonian-` prefix so the future `ctest -R
+# 002-hamiltonian-<group>` patterns of T-003-T-007 match exactly one entry
+# each.
+set(QA_PUBLIC_HEADERS_002
+    include/qa/hamiltonian/problem.h)
+
+foreach(header IN LISTS QA_PUBLIC_HEADERS_002)
+    string(REGEX REPLACE "[/.]" "-" header_slug "${header}")
+    add_test(NAME 002-hamiltonian-${header_slug}-standalone
+             COMMAND ${CMAKE_C_COMPILER} -std=c17 -Wall -Wextra -Wpedantic
+                     -fsyntax-only
+                     -I${CMAKE_CURRENT_SOURCE_DIR}/include
+                     ${CMAKE_CURRENT_SOURCE_DIR}/${header})
+    add_test(NAME 002-hamiltonian-${header_slug}-docs
+             COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/scripts/check-header-docs.sh
+                     ${CMAKE_CURRENT_SOURCE_DIR}/${header})
+    set_tests_properties(
+        002-hamiltonian-${header_slug}-standalone
+        002-hamiltonian-${header_slug}-docs
+        PROPERTIES LABELS "002-hamiltonian;phase-1;header-gate")
+endforeach()
