@@ -48,9 +48,16 @@ endif()
 
 enable_testing()
 
+# Strict warnings (-Werror) are the norm (constitution STK-5). Configure with
+# -DQA_WERROR=OFF for a non-blocking development build.
+option(QA_WERROR "Treat compiler warnings as errors" ON)
+
 # One warning set for every target (constitution §1, codestyle §9).
 function(qa_configure_target target)
     target_compile_options(${target} PRIVATE -Wall -Wextra -Wpedantic)
+    if(QA_WERROR)
+        target_compile_options(${target} PRIVATE -Werror)
+    endif()
     target_compile_definitions(${target} PRIVATE QA_BUILD_TYPE="${QA_BUILD_TYPE}")
 endfunction()
 

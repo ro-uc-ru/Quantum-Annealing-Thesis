@@ -1,25 +1,56 @@
-# Project Constitution
+# Constitution
 
-These principles are non-negotiable. Any exception requires explicit user approval
-before implementation and a documented rationale in the active specification.
+- Status: approved
 
-1. Production code MUST be written in C17 and built with CMake and clang.
-2. The CPU implementation MUST remain the reference backend; accelerators are optional.
-3. Hamiltonian operators MUST be matrix-free; dense Hamiltonian allocation is forbidden.
-4. Specifications MUST be approved before related implementation begins. Approval is explicit user approval recorded in the active specification (Status plus date).
-5. Every behavior MUST be traceable from specification to tests and implementation.
-6. Every public and non-obvious internal function MUST document purpose, ownership, errors, and numerical assumptions.
-7. Every allocation MUST have one documented owner and one unambiguous release path.
-8. All allocations, I/O, integer conversions, and numerical-domain errors MUST be checked.
-9. Code MUST be sanitizer-clean; unresolved memory leaks or undefined behavior block completion.
-10. Unit tests MUST cover mathematical primitives, indexing, operators, normalization, and failure paths.
-11. Integration tests MUST validate specified scientific outcomes and reproducibility.
-12. Time evolution MUST preserve required invariants within specified numerical tolerances. Default NORM_TOL is 1e-12 for `complex double`; each specification may tighten or relax it with justification.
-13. Tests and experiments MUST be deterministic, parameterized, and record their configuration. Recorded configuration MUST include seed, N, schedule, dt/steps, git sha, clang version, and CMake flags in a versioned machine-readable record.
-14. Generated build artifacts, logs, and results MUST stay outside source directories and be ignored by Git. Closed list: `build/`, `bin/`, `results/`, `*.log`, covered by a versioned `.gitignore`.
-15. Dependencies MUST be minimal, documented, and justified by a concrete project need. Minimal means: if it is not necessary, it is not included.
+> Basis of the project. Every spec, plan and task MUST comply with it.
+> It overrides any spec/plan. Once approved it is NOT changed during normal work;
+> any change needs team approval.
+> Each statement is VERIFIABLE: a reviewer can look at the repo and say
+> "complies" or "does not".
+> Cite statements by ID (e.g. STK-1). IDs are never renumbered. A removed
+> statement keeps its line with "(retired: <reason>)" appended.
+> Any exception requires explicit user approval before implementation and a
+> documented rationale in the active specification.
 
-## Staged scope
+## 1. Stack (STK)
+- STK-1 All production code is C17, built with CMake and clang.
+- STK-2 The CPU implementation is the reference backend; accelerators (e.g. Metal) are optional and no build or test requires them.
+- STK-3 Dependencies are minimal, documented and justified by a concrete project need. A new dependency needs explicit user approval. OpenMP is optional.
+- STK-4 Generated build artifacts, logs and results (`build/`, `bin/`, `results/`, `*.log`) stay outside source directories and are covered by a versioned `.gitignore`.
+- STK-5 Production code and tests compile with `-Wall -Wextra -Werror` and zero warnings; this strict build is the default and the one that gates task completion. A non-strict build (`-DQA_WERROR=OFF`) may exist for non-blocking development only.
 
-- Exact-state studies target 2x2 through 5x5.
-- 2x2 and 3x3 MUST be completed; 4x4 is the expected goal; 5x5 is the final stretch goal.
+## 2. Memory Safety (MEM)
+- MEM-1 Every allocation has one documented owner and one unambiguous release path.
+- MEM-2 Every test and every specified run reports zero leaks: `leaks --atExit` on macOS, LeakSanitizer on Linux.
+- MEM-3 All tests and specified runs are clean under ASan and UBSan on every supported platform.
+- MEM-4 Every failure path releases all resources, and each one has a failure-path test that exercises it.
+- MEM-5 Every write into a buffer is bounded by that buffer's size (no `strcpy`, `strcat`, `sprintf`, `gets`; `read`/`fread`/`memcpy` lengths never exceed the destination). Sizes and indices are validated before any multiply, shift or allocation.
+- MEM-6 An unresolved leak, memory error or undefined behavior blocks task completion.
+
+## 3. Architecture and Boundaries (ARC)
+- ARC-1 Hamiltonian operators are matrix-free; allocating a dense Hamiltonian matrix is forbidden.
+- ARC-2 (retired: moved to MEM-1)
+- ARC-3 Every public function and every non-obvious internal function documents purpose, ownership, errors and numerical assumptions.
+- ARC-4 Every behavior is traceable from specification to tests and implementation.
+- ARC-5 Time evolution preserves its required invariants (state norm) within tolerance. Default `NORM_TOL` is 1e-12 for `complex double`; each specification may tighten or relax it with justification.
+
+## 4. Testing (TST)
+- TST-1 Unit tests cover mathematical primitives, indexing, operators, normalization and failure paths.
+- TST-2 Integration tests validate the specified scientific outcomes and reproducibility.
+- TST-3 Tests and experiments are deterministic and parameterized.
+- TST-4 Each run records its configuration in a versioned machine-readable record: seed, N, schedule, dt/steps, git sha, clang version and CMake flags.
+- TST-5 (retired: moved to MEM-2, MEM-3 and MEM-6)
+- TST-6 A specification is approved (explicit user approval recorded as Status plus date in the active specification) before any related implementation begins.
+
+## 5. Errors and Logging (ERR)
+- ERR-1 All allocations, I/O, integer conversions and numerical-domain errors are checked.
+- ERR-2 Errors are never ignored: they are returned as `QaStatus`. Resource release on failure paths is governed by MEM-4.
+
+## 6. Scope (SCP)
+- SCP-1 Exact-state studies target 2x2 through 5x5. 2x2 and 3x3 MUST be completed; 4x4 is the expected goal; 5x5 is the final stretch goal and the upper bound.
+- SCP-2 The original Python TFG is a scientific baseline, not code to reproduce.
+- SCP-3 Out of scope: execution on real quantum hardware, boards larger than 5x5, and mandatory GPU backends.
+- SCP-4 The project demonstrates that carefully written C is memory-safe and reliable: the rules in section 2 are the central quality bar of the project.
+
+## 7. Limits (LIM)
+- LIM-1 Supported platforms: macOS on Apple Silicon and Linux, both with clang, both equally required to build and pass every test and every check in section 2.
