@@ -34,13 +34,14 @@
 - ARC-4 Every behavior is traceable from specification to tests and implementation.
 - ARC-5 Time evolution preserves its required invariants (state norm) within tolerance. Default `NORM_TOL` is 1e-12 for `complex double`; each specification may tighten or relax it with justification.
 
+- ARC-6 Source files are documented at the density of `src/core/grid.c` and public headers at the density of `include/qa/evolution/schedules.h`. Every `.c` file opens with a header comment (purpose, ownership, errors, numerical assumptions); every function, including `static` helpers, has a doc block with purpose, inputs, outputs, ownership, errors and numerical assumptions; every public definition carries an implementation note pointing to its header contract; and every validation, checked arithmetic step, clamp or output write whose safety depends on a bound has an inline comment stating that bound. Every public header opens with a scope comment (spec, FR/EC covered, definitions, formulas and numerical bounds used by its functions); every public type and enumerator is documented with `@owner` and `@assumes`; every public function documents its numbered validation order with the FR/EC of each step, `@param` directions, every reachable `@return` code and what happens to out-params on failure, `@owner` and `@assumes`; and a header declares only what it uses (no unused includes).
+
 ## 4. Testing (TST)
 - TST-1 Unit tests cover mathematical primitives, indexing, operators, normalization and failure paths.
 - TST-2 Integration tests validate the specified scientific outcomes and reproducibility.
 - TST-3 Tests and experiments are deterministic and parameterized.
 - TST-4 Each run records its configuration in a versioned machine-readable record: seed, N, schedule, dt/steps, git sha, clang version and CMake flags.
-- TST-5 (retired: moved to MEM-2, MEM-3 and MEM-6)
-- TST-6 A specification is approved (explicit user approval recorded as Status plus date in the active specification) before any related implementation begins.
+- TST-5 A specification is approved (explicit user approval recorded as Status plus date in the active specification) before any related implementation begins.
 
 ## 5. Errors and Logging (ERR)
 - ERR-1 All allocations, I/O, integer conversions and numerical-domain errors are checked.

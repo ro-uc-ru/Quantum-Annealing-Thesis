@@ -6,8 +6,8 @@
  * (spec 002-hamiltonian, T-001).
  *
  * Scope: FR-005 (exact `qaHamiltonianApplyProblem` contract). Declarations
- * only; behavior arrives with Phase 2 in the `qa_hamiltonian` module.
- * No allocation, no IO, no evolution.
+ * only; behavior lives in `src/hamiltonian/problem.c`. No allocation, no IO,
+ * no evolution.
  *
  * Operator fixed by spec §1 and used by the declaration below:
  *   numCells = n * n                 (4, 9, 16 for n = 2, 3, 4)
@@ -80,6 +80,7 @@
  *          assumes finite inputs for the norm gate and exact small-integer
  *          energies `E(k)` scaled into `complex double` outputs.
  */
-QaStatus qaHamiltonianApplyProblem(unsigned int n, const complex double *phi, complex double *outPsi, size_t dim);
+QaStatus qaHamiltonianApplyProblem(unsigned int n, const complex double *phi,
+                                   complex double *outPsi, size_t dim);
 
 #endif /* QA_HAMILTONIAN_PROBLEM_H */

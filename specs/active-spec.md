@@ -1,1 +1,1 @@
-Current Active Spec: 002-hamiltonian (Approved 2026-09-30)
+Current Active Spec: 003-schedules (Approved 2026-10-05)

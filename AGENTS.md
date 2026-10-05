@@ -10,6 +10,7 @@ Reproducible simulator of quantum annealing on N-Queens variants, with exact-sta
 - Do one task, run its "Done when" check, tick it `[x]`, STOP. Ticking is the only allowed edit to `tasks.md`.
 - Do not implement code, advance a specification, or change `specs/`, `docs/constitution.md`, or this file without explicit user permission.
 - Follow `docs/codestyle.md` for all code style (naming, `f -> a` spacing, `QaStatus` enums, `goto cleanup`).
+- Document code at the density of `src/core/grid.c` (constitution ARC-6): file header comment, a doc block on EVERY function including `static` helpers, an implementation note on each public definition pointing to its header contract, and an inline comment on every validation, checked arithmetic, clamp or write point whose safety depends on a bound. Public headers follow `include/qa/evolution/schedules.h`: scope comment with definitions and bounds, documented types and enumerators, numbered validation order per function, only the includes they use.
 - Never materialize dense Hamiltonian matrices; apply operators matrix-free and preserve state normalization.
 - Every allocation has one documented owner and release path; check all allocation, file and numerical errors and free resources on every failure path.
 - Prefer Grep and ranged Read over whole-file reads; pipe build/test/sanitizer/`leaks` output through `tail -n 40` and expand only on failure.
@@ -26,7 +27,7 @@ Reproducible simulator of quantum annealing on N-Queens variants, with exact-sta
 - `src/core`         <- grid and state-space basics. Depends on: libc, libm
 - `src/model`        <- N-Queens problem model. Depends on: core
 - `src/hamiltonian`  <- problem Hamiltonian, applied matrix-free. Depends on: core, model
-- `src/evolution`    <- unitary split-operator annealing evolution. Depends on: core, hamiltonian, OpenMP (optional)
+- `src/evolution`    <- annealing evolution; subfolders: `schedules/` (pure a(t), b(t) evaluation; depends on: core, libm) and the unitary split-operator time evolution (later spec). Depends on: core, hamiltonian, OpenMP (optional)
 - `src/io`           <- reproducible machine-readable result output. Depends on: core
 - `src/cli`          <- experiment and demo executables, documented in the active spec. Depends on: all above
 

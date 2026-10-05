@@ -5,6 +5,7 @@
 #
 # Traceability: spec 001-states, task T01 (build scaffold).
 # Traceability: spec 002-hamiltonian, task T-002 (hamiltonian wiring).
+# Traceability: spec 003-schedules, task T-002 (schedules wiring).
 # Test naming contract, fixed here and consumed by T06-T10:
 #   - CTest test name: the `ctest -R` pattern required by tasks.md T06-T10
 #     (e.g. `001-states-n-gate`).
@@ -269,4 +270,69 @@ foreach(header IN LISTS QA_PUBLIC_HEADERS_002)
         002-hamiltonian-${header_slug}-standalone
         002-hamiltonian-${header_slug}-docs
         PROPERTIES LABELS "002-hamiltonian;phase-1;header-gate")
+endforeach()
+
+# 003-schedules Phase 1 wiring (task T-002, FR-002, FR-013). Static schedules
+# module linking `qa_core` and libm; `src/evolution/schedules/schedules.c` is
+# the T-002 placeholder translation unit (proves the include chain, claims no
+# behavior). FR-001..FR-014 behavior arrives with T-003 and T-004 (Phase 2).
+add_library(qa_schedules STATIC src/evolution/schedules/schedules.c)
+target_include_directories(qa_schedules PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)
+target_link_libraries(qa_schedules PUBLIC qa_core m)
+qa_configure_target(qa_schedules)
+
+# 003-schedules header test (task T-002): self-containment, include guard,
+# four-family enum and exact `qaScheduleEval` / `qaScheduleName` signatures.
+add_executable(test-003-schedules-header tests/evolution/test-schedules-header.c)
+target_link_libraries(test-003-schedules-header PRIVATE qa_schedules)
+qa_configure_target(test-003-schedules-header)
+add_test(NAME 003-schedules-header COMMAND test-003-schedules-header)
+set_tests_properties(
+    003-schedules-header
+    PROPERTIES LABELS "003-schedules;phase-1")
+
+# 003-schedules behavior tests, Phase 3 (tasks T-005..T-009, one group per
+# CTest entry). One binary; each tasks.md `ctest -R 003-schedules-<group>`
+# pattern matches exactly one entry. Later groups append here.
+add_executable(test-003-schedules tests/evolution/test-schedules.c)
+target_link_libraries(test-003-schedules PRIVATE qa_schedules)
+qa_configure_target(test-003-schedules)
+add_test(NAME 003-schedules-eval COMMAND test-003-schedules eval)
+add_test(NAME 003-schedules-boundary COMMAND test-003-schedules boundary)
+add_test(NAME 003-schedules-properties COMMAND test-003-schedules properties)
+add_test(NAME 003-schedules-limits COMMAND test-003-schedules limits)
+add_test(NAME 003-schedules-errors COMMAND test-003-schedules errors)
+add_test(NAME 003-schedules-names COMMAND test-003-schedules names)
+add_test(NAME 003-schedules-determinism COMMAND test-003-schedules determinism)
+set_tests_properties(
+    003-schedules-eval
+    003-schedules-boundary
+    003-schedules-properties
+    003-schedules-limits
+    003-schedules-errors
+    003-schedules-names
+    003-schedules-determinism
+    PROPERTIES LABELS "003-schedules;phase-3")
+
+# 003-schedules public-header gate (task T-002, Phase 1). Same contract as the
+# 001/002 gates (standalone compile + constitution §6 docs check), with the
+# `003-schedules-` prefix so `ctest -R 003-schedules-<group>` patterns match
+# exactly one entry each.
+set(QA_PUBLIC_HEADERS_003
+    include/qa/evolution/schedules.h)
+
+foreach(header IN LISTS QA_PUBLIC_HEADERS_003)
+    string(REGEX REPLACE "[/.]" "-" header_slug "${header}")
+    add_test(NAME 003-schedules-${header_slug}-standalone
+             COMMAND ${CMAKE_C_COMPILER} -std=c17 -Wall -Wextra -Wpedantic
+                     -fsyntax-only
+                     -I${CMAKE_CURRENT_SOURCE_DIR}/include
+                     ${CMAKE_CURRENT_SOURCE_DIR}/${header})
+    add_test(NAME 003-schedules-${header_slug}-docs
+             COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/scripts/check-header-docs.sh
+                     ${CMAKE_CURRENT_SOURCE_DIR}/${header})
+    set_tests_properties(
+        003-schedules-${header_slug}-standalone
+        003-schedules-${header_slug}-docs
+        PROPERTIES LABELS "003-schedules;phase-1;header-gate")
 endforeach()
