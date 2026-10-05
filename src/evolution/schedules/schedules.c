@@ -47,16 +47,26 @@ static const char *const qaScheduleNames[QA_SCHEDULE_COUNT] = {
  * @param[in] kind Value to test; a C enum may hold any integer, so this is
  *                 the only guard between a caller cast and the name table.
  *
- * @return `1` when `0 <= kind < QA_SCHEDULE_COUNT`, otherwise `0`.
+ * @return `1` when `0 <= kind < QA_SCHEDULE_COUNT`, otherwise `0`. No
+ *         failure path: every input, including a cast from any integer, gets
+ *         a definite answer.
  *
  * @owner No allocation, no pointers, nothing to release.
  * @assumes Enumerator values are the contiguous range 0..3 fixed by
  *          `qa/evolution/schedules.h`, so the range test is exact and the
- *          result is a valid index into `qaScheduleNames`.
+ *          result is a valid index into `qaScheduleNames`. The test runs in
+ *          `unsigned int` because the underlying type of the enum is
+ *          implementation-defined (unsigned under clang): converting a value
+ *          above `INT_MAX` to `int` is implementation-defined, while
+ *          converting to `unsigned int` is modular and therefore exact. A
+ *          negative cast value becomes a huge unsigned value and fails the
+ *          upper bound, so a single comparison covers both ends.
  */
 static int qaScheduleKindIsValid(QaScheduleKind kind)
 {
-    return (int) kind >= 0 && (int) kind < QA_SCHEDULE_COUNT;
+    /* Bound: `(unsigned int)kind < 4` accepts exactly 0..3; any other cast
+     * integer, negative or large, is rejected before it can index the table. */
+    return (unsigned int)kind < (unsigned int)QA_SCHEDULE_COUNT;
 }
 
 /**
@@ -64,7 +74,9 @@ static int qaScheduleKindIsValid(QaScheduleKind kind)
  *
  * @param[in] x Finite weight computed from a closed form.
  *
- * @return `0.0` if `x < 0`, `1.0` if `x > 1`, otherwise `x` unchanged.
+ * @return `0.0` if `x < 0`, `1.0` if `x > 1`, otherwise `x` unchanged. No
+ *         failure path: a NaN input would be returned unchanged (both
+ *         comparisons are false), but callers never pass one (see below).
  *
  * @owner No allocation, nothing to release.
  * @assumes `x` is finite (it comes from finite `s` in `[0, 1]`). Rounding can
@@ -75,9 +87,11 @@ static int qaScheduleKindIsValid(QaScheduleKind kind)
  */
 static double qaScheduleClamp01(double x)
 {
+    /* Lower bound of the range: rounding must not leave a weight below 0. */
     if (x < 0.0) {
         return 0.0;
     }
+    /* Upper bound of the range: rounding must not leave a weight above 1. */
     if (x > 1.0) {
         return 1.0;
     }
@@ -127,8 +141,11 @@ QaStatus qaScheduleEval(QaScheduleKind kind, double t, double T,
         b = 1.0 - s;
         break;
     case QA_SCHEDULE_TRIGONOMETRIC: {
-        /* `sin` and `cos` are evaluated separately instead of using
-         * `1 - sin^2`, so `b` keeps its own absolute accuracy near `s = 1`. */
+        /* `s` is in [0, 1], so the angle `pi * s / 2` lies in [0, pi/2], where
+         * `sin` and `cos` are in [0, 1] and their squares too (up to rounding,
+         * which the final clamp absorbs). `sin` and `cos` are evaluated
+         * separately instead of using `1 - sin^2`, so `b` keeps its own
+         * absolute accuracy near `s = 1`. */
         double sn = sin(QA_SCHEDULE_PI * s / 2.0);
         double cs = cos(QA_SCHEDULE_PI * s / 2.0);
         a = sn * sn;
@@ -153,8 +170,10 @@ QaStatus qaScheduleEval(QaScheduleKind kind, double t, double T,
         return QA_ERR_DOMAIN;
     }
 
-    /* Single write point: both weights are final before either out-param is
-     * touched, so no failure path leaves a partial result (FR-009..FR-012). */
+    /* Single write point: both weights are clamped to the exact range [0, 1]
+     * (FR-005) and final before either out-param is touched, and both
+     * out-params were proven non-NULL above, so no failure path leaves a
+     * partial result (FR-009..FR-012). */
     *outA = qaScheduleClamp01(a);
     *outB = qaScheduleClamp01(b);
     return QA_OK;
@@ -164,22 +183,23 @@ QaStatus qaScheduleEval(QaScheduleKind kind, double t, double T,
  * `qaScheduleName` (task T-003, FR-013, FR-014).
  *
  * Implements the contract declared in `include/qa/evolution/schedules.h`:
- * `kind` first, then the NULL receiver, and `*name` is written only on
+ * `kind` first, then the NULL receiver, and `*outName` is written only on
  * success. The header carries the normative §6 documentation; what follows
  * states only the implementation-side facts.
  */
-QaStatus qaScheduleName(QaScheduleKind kind, const char **name)
+QaStatus qaScheduleName(QaScheduleKind kind, const char **outName)
 {
     if (!qaScheduleKindIsValid(kind)) {
         return QA_ERR_DOMAIN;
     }
-    if (name == NULL) {
+    if (outName == NULL) {
         return QA_ERR_DOMAIN;
     }
 
     /* Bounded index: `qaScheduleKindIsValid` proved `0 <= kind < 4`, which is
-     * the size of the table. The pointer targets a static literal, so the
-     * caller never frees it and it outlives every call. */
-    *name = qaScheduleNames[(int) kind];
+     * the size of the table, so the `unsigned int` conversion is exact and in
+     * range. The pointer targets a static literal, so the caller never frees
+     * it and it outlives every call. */
+    *outName = qaScheduleNames[(unsigned int)kind];
     return QA_OK;
 }

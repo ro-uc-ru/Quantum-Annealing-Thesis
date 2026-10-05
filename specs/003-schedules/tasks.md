@@ -66,7 +66,7 @@
   `ctest --test-dir build -R 003-schedules-errors --output-on-failure` passes.
   After: T-005
 - [x] T-009 Add the `names` group (four exact names, invalid `kind`, `NULL`
-  receiver, `*name` untouched on error) and the `determinism` group (repeated
+  receiver, `*outName` untouched on error) and the `determinism` group (repeated
   calls bit-identical, call order independent). Covers: FR-008, FR-013,
   FR-014. Done when:
   `ctest --test-dir build -R 003-schedules-(names|determinism) --output-on-failure`

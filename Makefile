@@ -33,9 +33,8 @@ asan:
 	cmake --build $(BUILD)/san
 	ctest --test-dir $(BUILD)/san --output-on-failure
 
-leaks:
-	leaks --atExit -- $(BUILD)/test-001-states
-	leaks --atExit -- $(BUILD)/test-001-states-header
+leaks: build
+	scripts/check-leaks.sh $(BUILD)
 
 clean:
 	rm -rf $(BUILD)

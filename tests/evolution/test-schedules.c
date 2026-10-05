@@ -1,27 +1,35 @@
 /*
- * 003-schedules unit tests, Phase 3 (task T-005: harness plus the `eval` and
- * `boundary` groups; later tasks add `properties`, `limits`, `errors` and
- * `names` to the same dispatch table).
+ * 003-schedules unit tests, Phase 3 (tasks T-005 to T-009): one harness with
+ * seven groups, `eval`, `boundary`, `properties`, `limits`, `errors`, `names`
+ * and `determinism`, selected through one dispatch table.
  *
  * Purpose: assert the specified schedule behavior group by group, each group
  * selectable as `test-003-schedules <group>` so every tasks.md
  * `ctest -R 003-schedules-<group>` pattern matches exactly one CTest entry.
- * Failing checks print the `TEST-003-schedules-FRxxx` / `-ECxxx` identifier
+ * Failing checks print the `TEST-003-schedules-FR-xxx` / `-EC-xxx` identifier
  * of the requirement they cover (the CTest name carries the tasks.md pattern,
  * the printed tag carries the spec identifier).
  *
  * Groups: `eval` (FR-001, FR-002, EC-005), `boundary` (FR-003, EC-001,
  * EC-002), `properties` (FR-003..FR-007), `limits` (FR-005, EC-003,
  * EC-004, EC-006, EC-007), `errors` (FR-009..FR-012, EC-006, EC-007),
- * `names` (FR-013, FR-014), `determinism` (FR-008). No
- * arguments runs every group.
+ * `names` (FR-013, FR-014), `determinism` (FR-008). No arguments runs every
+ * group.
  *
- * Ownership: no allocation; nothing to release. Errors: any failed check is
- * printed with its tag and the process exits 1; an unknown group name or too
- * many arguments exits 2 with usage. Numerical assumptions: expected values
- * are computed here from the closed forms of spec §1 with libm, and compared
- * within `SCHED_TOL` (1e-12) as the spec fixes. Determinism: fixed vectors
- * only, no clock, no RNG, no environment or filesystem access.
+ * Ownership: no allocation; nothing to release. Every diagnostic message is
+ * built with `snprintf` into a fixed 160-byte local buffer bounded by
+ * `sizeof`, so it can never overflow; a message too long is truncated, which
+ * only shortens the text of a failure and never changes a verdict. Errors:
+ * any failed check is printed with its tag and the process exits 1; an
+ * unknown group name or too many arguments exits 2 with usage. Numerical
+ * assumptions: expected values are computed here from the closed forms of
+ * spec §1 with libm, and compared within `SCHED_TOL` (1e-12) as the spec
+ * fixes. The banner uses the clang-only macro `__clang_version__` (STK-1: clang
+ * is the project compiler). `QaScheduleKind` casts of out-of-set integers are
+ * deliberate (FR-011, FR-014); under clang the enum is `unsigned int`, so a
+ * negative cast value wraps to a large one and must be rejected all the same.
+ * Determinism: fixed vectors only, no clock, no RNG, no environment or
+ * filesystem access.
  */
 
 #include "qa/evolution/schedules.h"
@@ -45,10 +53,10 @@
 static const double kPi = 3.14159265358979323846;
 
 /* Test table row: one named group and its entry point. */
-typedef struct GroupEntry {
+typedef struct QaScheduleTestGroup {
     const char *name;    /* group name as given on the command line */
     int (*run)(void);    /* returns the failure count of the group */
-} GroupEntry;
+} QaScheduleTestGroup;
 
 /**
  * @brief Record one check; prints the tagged message when it fails.
@@ -75,6 +83,9 @@ static int check(int condition, const char *tag, const char *what)
  *
  * @param[out] outA Receiver of `a`, set to `SENTINEL`.
  * @param[out] outB Receiver of `b`, set to `SENTINEL`.
+ *
+ * @return Nothing (`void`). No failure path: two plain stores through
+ *         pointers the caller guarantees valid.
  *
  * @owner Receivers are caller-owned locals; nothing is allocated.
  * @assumes Both pointers are non-NULL (test-local storage).
@@ -229,6 +240,8 @@ static int runEval(void)
     int failures = 0;
 
     for (int k = 0; k < KIND_COUNT; ++k) {
+        /* Bound: `k < KIND_COUNT` keeps the cast inside the four families and
+         * every `ec005[k]` / `quarter[k]` access inside its array. */
         QaScheduleKind kind = (QaScheduleKind)k;
         double a;
         double b;
@@ -253,14 +266,17 @@ static int runEval(void)
                  label(kind), b, ec005[k][1]);
         failures += check(fabs(b - ec005[k][1]) <= SCHED_TOL, "EC-005", what);
 
-        /* FR-002: remember a(0.25) to prove the four curves are distinct. */
+        /* FR-002: remember a(0.25) to prove the four curves are distinct;
+         * the write is bounded by `k < KIND_COUNT` (loop bound above). */
         poison(&a, &b);
         failures += check(qaScheduleEval(kind, 0.25, 1.0, &a, &b) == QA_OK,
                           "FR-002", "kind in 0..3 is accepted");
         quarter[k] = a;
     }
 
-    /* FR-002: exactly four distinct families (pairwise distinct a(0.25)). */
+    /* FR-002: exactly four distinct families (pairwise distinct a(0.25));
+     * `i < j < KIND_COUNT` keeps both `quarter[]` reads and both kind casts
+     * inside the four families. */
     for (int i = 0; i < KIND_COUNT; ++i) {
         for (int j = i + 1; j < KIND_COUNT; ++j) {
             snprintf(what, sizeof what,
@@ -294,6 +310,8 @@ static int runBoundary(void)
     int failures = 0;
 
     for (int k = 0; k < KIND_COUNT; ++k) {
+        /* Bound: `k < KIND_COUNT` (loop bound) keeps the cast inside the four
+         * families. */
         QaScheduleKind kind = (QaScheduleKind)k;
 
         for (size_t j = 0; j < sizeof totals / sizeof totals[0]; ++j) {
@@ -370,6 +388,8 @@ static int runProperties(void)
     int failures = 0;
 
     for (int k = 0; k < KIND_COUNT; ++k) {
+        /* Bound: `k < KIND_COUNT` (loop bound) keeps the cast inside the four
+         * families. */
         QaScheduleKind kind = (QaScheduleKind)k;
         double prevA = 0.0;
         double prevB = 1.0;
@@ -408,6 +428,9 @@ static int runProperties(void)
                 double a2;
                 double b2;
 
+                /* Bound: `c <= 1e3` and `T = 10` give `c * T <= 1e4`, far from
+                 * overflow, and monotonic rounding keeps `c * t <= c * T`, so
+                 * both arguments stay valid inputs (`0 <= c*t <= c*T`). */
                 poison(&a2, &b2);
                 snprintf(what, sizeof what, "%s i=%d c=%g differs from c=1",
                          label(kind), i, c);
@@ -490,6 +513,8 @@ static int runLimits(void)
     int failures = 0;
 
     for (int k = 0; k < KIND_COUNT; ++k) {
+        /* Bound: `k < KIND_COUNT` (loop bound) keeps the cast inside the four
+         * families. */
         QaScheduleKind kind = (QaScheduleKind)k;
         double a;
         double b;
@@ -581,7 +606,7 @@ static int checkReject(QaScheduleKind kind, double t, double T,
  * receivers untouched, in all four families: FR-009 `T` NaN, `+-inf`, `0`,
  * `-0.0`, negative and negative subnormal; FR-010 `t` NaN, `-inf`, negative,
  * `-1e-300`, `t > T`, `nextafter(T, inf)` and `+inf`; FR-011 out-of-set kinds
- * (`-1`, `4`, `INT_MAX`, `INT_MIN`); FR-012 NULL for each receiver and for
+ * (`-1`, `4`, `100`, `INT_MAX`, `INT_MIN`); FR-012 NULL for each receiver and for
  * both. EC-006/EC-007 boundary: `-0.0` as `t` and a positive subnormal `T`
  * are still accepted, so the rejection checks are not over-broad.
  *
@@ -601,6 +626,8 @@ static int runErrors(void)
     int failures = 0;
 
     for (int k = 0; k < KIND_COUNT; ++k) {
+        /* Bound: `k < KIND_COUNT` (loop bound) keeps the cast inside the four
+         * families. */
         QaScheduleKind kind = (QaScheduleKind)k;
         const double T = 10.0;
         const double badTimes[] = {NAN, -INFINITY, -1.0, -1e-300, 10.5,
@@ -643,7 +670,9 @@ static int runErrors(void)
                           "EC-007", what);
     }
 
-    /* FR-011: out-of-set kinds via an out-of-range cast. */
+    /* FR-011: out-of-set kinds via an out-of-range cast; the cast is the only
+     * way to build such a value in C, and `qaScheduleEval` must reject it
+     * before using it (FR-011). */
     for (size_t j = 0; j < sizeof badKinds / sizeof badKinds[0]; ++j) {
         snprintf(what, sizeof what, "kind=%d", badKinds[j]);
         failures += checkReject((QaScheduleKind)badKinds[j], 1.0, 10.0,
@@ -678,6 +707,8 @@ static int runNames(void)
     char what[160];
     int failures = 0;
 
+    /* Bound: `k < KIND_COUNT` keeps the kind casts inside the four families
+     * and `expected[k]` inside its `KIND_COUNT` entries. */
     for (int k = 0; k < KIND_COUNT; ++k) {
         name = sentinel;
         again = sentinel;
@@ -694,6 +725,9 @@ static int runNames(void)
                           "FR-013", what);
     }
 
+    /* FR-014: out-of-set kinds built with an out-of-range cast (the only way
+     * to make one in C); `qaScheduleName` must reject each before indexing
+     * its table, leaving `*name` untouched. */
     for (size_t j = 0; j < sizeof badKinds / sizeof badKinds[0]; ++j) {
         name = sentinel;
         snprintf(what, sizeof what, "kind=%d is rejected, name untouched",
@@ -705,6 +739,8 @@ static int runNames(void)
     }
     failures += check(qaScheduleName(QA_SCHEDULE_LINEAR, NULL) == QA_ERR_DOMAIN,
                       "FR-014", "NULL name with valid kind is rejected");
+    /* Out-of-range cast on purpose: both the kind and the receiver are bad,
+     * and the call must still return `QA_ERR_DOMAIN` without writing. */
     failures += check(qaScheduleName((QaScheduleKind)-1, NULL) == QA_ERR_DOMAIN,
                       "FR-014", "NULL name with invalid kind is rejected");
     return failures;
@@ -716,15 +752,18 @@ static int runNames(void)
  * @param kind Family under test.
  * @param t    Time, `0 <= t <= T`.
  * @param T    Total time, finite and `> 0`.
- * @param[out] out Receives `a` then `b`, caller-owned two-element array.
+ * @param[out] outPair Receives `a` then `b`, caller-owned two-element array.
  * @return `QA_OK` on success, otherwise the failing `QaStatus`.
  *
- * @owner `out` is caller-owned; nothing is allocated.
+ * @owner `outPair` is caller-owned; nothing is allocated.
  * @assumes Inputs are valid.
  */
-static QaStatus evalPair(QaScheduleKind kind, double t, double T, double out[2])
+static QaStatus evalPair(QaScheduleKind kind, double t, double T,
+                         double outPair[2])
 {
-    return qaScheduleEval(kind, t, T, &out[0], &out[1]);
+    /* Bound: the two writes go to elements 0 and 1, the whole two-element
+     * array every caller (`ref[idx]`, `got`) provides. */
+    return qaScheduleEval(kind, t, T, &outPair[0], &outPair[1]);
 }
 
 /**
@@ -750,6 +789,13 @@ static int runDeterminism(void)
     char what[160];
     int failures = 0;
 
+    /* Bounds for every use of `idx` below: `0 <= idx < TOTAL` makes
+     * `idx / POINTS` a family in 0..3 (so the kind cast is in range) and keeps
+     * `ref[idx]` inside its `TOTAL` rows. The time `t` of a point is
+     * `(idx % POINTS) * T / (POINTS - 1)`; the last point of a family is
+     * `(POINTS - 1) * T / (POINTS - 1)`, which rounds back to exactly `T`
+     * (`100 * 7.3 / 100 == 7.3` in IEEE double), so `t <= T` always holds and
+     * `qaScheduleEval` never rejects a sample with `QA_ERR_DOMAIN`. */
     for (int idx = 0; idx < TOTAL; ++idx) {
         QaScheduleKind kind = (QaScheduleKind)(idx / POINTS);
         double t = (double)(idx % POINTS) * T / (double)(POINTS - 1);
@@ -760,14 +806,17 @@ static int runDeterminism(void)
     for (int pass = 0; pass < 3; ++pass) {
         for (int n = 0; n < TOTAL; ++n) {
             int idx;
+            /* Bound: each branch keeps `0 <= idx < TOTAL` for `0 <= n < TOTAL`:
+             * `n` itself; `TOTAL - 1 - n`; and `(n * 7) % TOTAL`, which is
+             * below `TOTAL` by the modulo, cannot overflow (`n * 7 < 3000`)
+             * and, because 7 is coprime with `TOTAL` (404 = 4 * 101), visits
+             * every index exactly once while interleaving the families. */
             if (pass == 0) {
                 idx = n;                          /* repeat, same order */
             } else if (pass == 1) {
                 idx = TOTAL - 1 - n;              /* reverse order */
             } else {
-                idx = (n * 7) % TOTAL;            /* 7 is coprime with 404: a
-                                                   * permutation interleaving
-                                                   * the families */
+                idx = (n * 7) % TOTAL;            /* strided permutation */
             }
             QaScheduleKind kind = (QaScheduleKind)(idx / POINTS);
             double t = (double)(idx % POINTS) * T / (double)(POINTS - 1);
@@ -781,8 +830,9 @@ static int runDeterminism(void)
     return failures;
 }
 
-/* Dispatch table: one entry per group; later tasks append their groups. */
-static const GroupEntry groups[] = {
+/* Dispatch table: one entry per group; adding a group means one entry here
+ * and one `add_test` in `CMakeLists.txt`. */
+static const QaScheduleTestGroup groups[] = {
     {"eval", runEval},
     {"boundary", runBoundary},
     {"properties", runProperties},
@@ -796,6 +846,11 @@ static const GroupEntry groups[] = {
  * @brief Print the usage line to stdout.
  *
  * @param prog Program name (`argv[0]`).
+ *
+ * @return Nothing (`void`). No failure path is reported: the `printf` results
+ *         are deliberately ignored, because a usage line that cannot be
+ *         written leaves no better channel to report it, and the caller exits
+ *         2 regardless.
  *
  * @owner No allocation; `prog` is borrowed.
  * @assumes `prog` is NUL-terminated.
@@ -831,10 +886,16 @@ static int runGroup(const char *name)
 /**
  * @brief Entry point: run one group (argv[1]) or all groups (no argument).
  *
+ * @param argc Argument count; 1 runs every group, 2 runs the group in
+ *             `argv[1]`, anything else is a usage error (exit 2).
+ * @param argv Argument vector; `argv[0]` is the program name and `argv[1]`
+ *             is read only when `argc == 2`.
+ *
  * @return 0 when every check passed, 1 when any failed, 2 on bad usage.
  *
- * @owner No allocation.
- * @assumes See file header.
+ * @owner No allocation; `argv` strings are borrowed from the C runtime.
+ * @assumes The banner uses the clang-only `__clang_version__` (see the file
+ *          header); the remaining assumptions are those of the file header.
  */
 int main(int argc, char *argv[])
 {
@@ -847,6 +908,8 @@ int main(int argc, char *argv[])
             failures += groups[i].run();
         }
     } else if (argc == 2) {
+        /* Bound: `argv[1]` exists and is NUL-terminated only because
+         * `argc == 2` (the C runtime guarantees `argv[argc] == NULL`). */
         int groupFailures = runGroup(argv[1]);
         if (groupFailures < 0) {
             printUsage(argv[0]);

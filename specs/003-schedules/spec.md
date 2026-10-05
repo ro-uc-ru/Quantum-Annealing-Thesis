@@ -46,8 +46,8 @@ evolution can be validated or reproduced.
 
   - Contract: `QaStatus qaScheduleEval(QaScheduleKind kind, double t, double T, double *a, double *b);`
     pure function: no state, no allocations, no I/O.
-  - Contract: `QaStatus qaScheduleName(QaScheduleKind kind, const char **name);`
-    pure function; `*name` points to a static, immutable, NUL-terminated string
+  - Contract: `QaStatus qaScheduleName(QaScheduleKind kind, const char **outName);`
+    pure function; `*outName` points to a static, immutable, NUL-terminated string
     owned by the library and never freed by the caller.
   - Error codes (existing `QaStatus`, none added): every invalid input
     (`T`, `t`, `kind`, `NULL` pointer) -> `QA_ERR_DOMAIN`.
@@ -73,8 +73,8 @@ evolution can be validated or reproduced.
 - FR-010 (unwanted)      IF `t` is NaN, `t < 0` or `t > T`, THEN the system shall return `QA_ERR_DOMAIN` without writing `*a` or `*b`; it never extrapolates or saturates.
 - FR-011 (unwanted)      IF `kind` is not one of the four families, THEN the system shall return `QA_ERR_DOMAIN` without writing `*a` or `*b`.
 - FR-012 (unwanted)      IF `a` or `b` is `NULL`, THEN the system shall return `QA_ERR_DOMAIN` and write through neither pointer.
-- FR-013 (event-driven)  WHEN the name of a valid `kind` is requested, the system shall write to `*name` its stable text name (`linear`, `trigonometric`, `quadratic`, `exponential`) for the run configuration record (TST-4) and return `QA_OK`.
-- FR-014 (unwanted)      IF `kind` is not one of the four families or `name` is `NULL`, THEN the name request shall return `QA_ERR_DOMAIN` without writing `*name`.
+- FR-013 (event-driven)  WHEN the name of a valid `kind` is requested, the system shall write to `*outName` its stable text name (`linear`, `trigonometric`, `quadratic`, `exponential`) for the run configuration record (TST-4) and return `QA_OK`.
+- FR-014 (unwanted)      IF `kind` is not one of the four families or `outName` is `NULL`, THEN the name request shall return `QA_ERR_DOMAIN` without writing `*outName`.
 
 ## 3. Edge Cases
 
@@ -122,3 +122,4 @@ evolution can be validated or reproduced.
 - 2026-10-05 QA-10: FR-008 clarified (same build and platform only).
 - 2026-10-05 QA-11: location `src/evolution/schedules/` in Note for the plan; ARC-3 added to DoD.
 - 2026-10-05 QA-7 (final): all invalid inputs return `QA_ERR_DOMAIN` (user decision). Spec approved 2026-10-05.
+- 2026-10-05 QA-12: out-param of `qaScheduleName` named `outName` in the contract, FR-013 and FR-014 (codestyle §1 `outX`), matching the header; types and behavior unchanged.

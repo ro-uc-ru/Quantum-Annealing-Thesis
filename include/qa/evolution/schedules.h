@@ -6,9 +6,12 @@
  * (spec 003-schedules, T-001).
  *
  * Scope: FR-002 (exactly four families), FR-013 and FR-014 (stable names),
- * plus the `qaScheduleEval` contract (FR-001, FR-003..FR-012). Declarations
- * only; behavior lives in `src/evolution/schedules/schedules.c`. No
- * allocation, no IO, no state.
+ * plus the `qaScheduleEval` contract (FR-001, FR-003..FR-012) and its edge
+ * cases: EC-001 and EC-002 (values at `t = 0` and `t = T`), EC-003 and EC-007
+ * (huge, tiny and subnormal `T`), EC-004 (neighbours of `s = 0` and `s = 1`),
+ * EC-005 (values at `s = 0.5`) and EC-006 (`t = -0.0`). Declarations only;
+ * behavior lives in `src/evolution/schedules/schedules.c`. No allocation, no
+ * IO, no state.
  *
  * Definitions fixed by spec §1 and used by every function below:
  *   T          total annealing time, finite and strictly positive
@@ -101,24 +104,24 @@ QaStatus qaScheduleEval(QaScheduleKind kind, double t, double T,
  * Pure function: no allocation, no IO. Fixed validation order, completed
  * before the write:
  *   1. `kind` is not one of the four families -> `QA_ERR_DOMAIN` (FR-014).
- *   2. `name == NULL` -> `QA_ERR_DOMAIN` (FR-014).
- * On success `*name` is one of `"linear"`, `"trigonometric"`, `"quadratic"`
+ *   2. `outName == NULL` -> `QA_ERR_DOMAIN` (FR-014).
+ * On success `*outName` is one of `"linear"`, `"trigonometric"`, `"quadratic"`
  * or `"exponential"`, matching the order of `QaScheduleKind`, for the run
  * configuration record (TST-4).
  *
  * @param[in]  kind Schedule family, one of the four `QaScheduleKind`.
- * @param[out] name Non-NULL caller-owned receiver of the name pointer.
+ * @param[out] outName Non-NULL caller-owned receiver of the name pointer.
  *
- * @return `QA_OK` (`*name` written); `QA_ERR_DOMAIN` (invalid `kind` or NULL
- *         `name`). On failure `*name` is left untouched (spec §1).
+ * @return `QA_OK` (`*outName` written); `QA_ERR_DOMAIN` (invalid `kind` or NULL
+ *         `outName`). On failure `*outName` is left untouched (spec §1).
  *
  * @owner The string is static, immutable and NUL-terminated, owned by the
  *        library and NEVER freed by the caller; it outlives every call. Only
- *        the pointer variable `name` refers to stays owned by the caller.
+ *        the pointer variable `outName` refers to stays owned by the caller.
  * @assumes The returned pointer is stable for the whole process lifetime and
  *          identical across calls with the same `kind`; callers must not
  *          write through it.
  */
-QaStatus qaScheduleName(QaScheduleKind kind, const char **name);
+QaStatus qaScheduleName(QaScheduleKind kind, const char **outName);
 
 #endif /* QA_EVOLUTION_SCHEDULES_H */
