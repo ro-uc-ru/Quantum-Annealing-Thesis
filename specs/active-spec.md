@@ -1,1 +1,1 @@
-Current Active Spec: 003-schedules (Approved 2026-10-05)
+Current Active Spec: None, yet to define

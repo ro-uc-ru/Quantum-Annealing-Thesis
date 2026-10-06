@@ -29,10 +29,9 @@
 
 ## 3. Architecture and Boundaries (ARC)
 - ARC-1 Hamiltonian operators are matrix-free; allocating a dense Hamiltonian matrix is forbidden.
-- ARC-2 (retired: moved to MEM-1)
-- ARC-3 Every public function and every non-obvious internal function documents purpose, ownership, errors and numerical assumptions.
-- ARC-4 Every behavior is traceable from specification to tests and implementation.
-- ARC-5 Time evolution preserves its required invariants (state norm) within tolerance. Default `NORM_TOL` is 1e-12 for `complex double`; each specification may tighten or relax it with justification.
+- ARC-2 Every public function and every non-obvious internal function documents purpose, ownership, errors and numerical assumptions.
+- ARC-3 Every behavior is traceable from specification to tests and implementation.
+- ARC-4 Time evolution preserves its required invariants (state norm) within tolerance. Default `NORM_TOL` is 1e-12 for `complex double`; each specification may tighten or relax it with justification.
 
 - ARC-6 Source files are documented at the density of `src/core/grid.c` and public headers at the density of `include/qa/evolution/schedules.h`. Every `.c` file opens with a header comment (purpose, ownership, errors, numerical assumptions); every function, including `static` helpers, has a doc block with purpose, inputs, outputs, ownership, errors and numerical assumptions; every public definition carries an implementation note pointing to its header contract; and every validation, checked arithmetic step, clamp or output write whose safety depends on a bound has an inline comment stating that bound. Every public header opens with a scope comment (spec, FR/EC covered, definitions, formulas and numerical bounds used by its functions); every public type and enumerator is documented with `@owner` and `@assumes`; every public function documents its numbered validation order with the FR/EC of each step, `@param` directions, every reachable `@return` code and what happens to out-params on failure, `@owner` and `@assumes`; and a header declares only what it uses (no unused includes).
 

@@ -6,10 +6,11 @@ thesis, while prioritizing a clearly specified, reproducible implementation.
 
 ## Design direction
 
-The reference implementation will run on the CPU on macOS/Apple Silicon.
-It will use a matrix-free, unitary split-operator time evolution: dense
-Hamiltonian allocation is intentionally out of scope. OpenMP and Metal are
-possible future optimizations, not prerequisites.
+The reference implementation runs on the CPU on macOS/Apple Silicon, with exact
+state studies for 2x2 through 5x5 boards (2x2 and 3x3 required, 4x4 expected,
+5x5 stretch). It uses a matrix-free, unitary split-operator time evolution:
+dense Hamiltonian allocation is intentionally out of scope. OpenMP is optional
+and Metal is a possible future optimization, not a prerequisite.
 
 ## Layout
 
@@ -22,9 +23,12 @@ tests/      Unit and integration tests, also organized by module.
 scripts/    Reproducible development and experiment helpers.
 bin/        Generated executables (not versioned).
 build/      Generated objects and dependency files (not versioned).
+results/    Generated experiment output, e.g. config CSVs (not versioned).
 ```
 
-The source modules are `core`, `model`, `evolution`, `io`, and `cli`.
+The source modules are `core`, `model`, `hamiltonian`, `evolution`, `io`, and
+`cli`. `evolution/schedules/` holds the pure a(t), b(t) evaluation; the unitary
+split-operator evolution itself arrives in a later spec.
 
 ## Specification workflow
 
@@ -35,17 +39,33 @@ specification is approved.
 
 ## Status
 
-Spec `001-states` (classical board states) is approved and partially
-implemented. Phases 0 and 1 are done: `CMakeLists.txt` builds the `qa_core`
-static library with C17 on clang and registers CTest gates for every public
-header; `include/qa/core/status.h` and `include/qa/core/grid.h` declare the
-shared `QaStatus` channel and the `QaGridId` board type. No grid behavior
-exists yet: it arrives with tasks T03-T05, and its unit tests with T06-T10 of
-`specs/001-states/tasks.md`.
+Specs `001-states`, `002-hamiltonian` and `003-schedules` are approved and
+fully implemented (all their tasks are ticked).
+
+- `001-states`: `qa_core` static library with the shared `QaStatus` channel
+  (`include/qa/core/status.h`) and the classical board grid helpers
+  (`include/qa/core/grid.h`, `src/core/grid.c`).
+- `002-hamiltonian`: matrix-free application of the diagonal N-Queens problem
+  Hamiltonian (`include/qa/hamiltonian/problem.h`), the `qa-002-demo` CLI
+  (representative N=4 run) and the versioned `results/002-config.csv`.
+- `003-schedules`: pure evaluation of the four annealing schedules (linear,
+  trigonometric, degree-2 polynomial, exponential) as `a(t)` and `b(t)`
+  (`include/qa/evolution/schedules.h`).
+
+The driver Hamiltonian, the split-operator evolution, `model` and `io` are not
+implemented yet.
 
 Build and test:
 
 ```sh
 cmake -S . -B build -DCMAKE_BUILD_TYPE=Debug && cmake --build build
 ctest --test-dir build --output-on-failure
+```
+
+Representative run, sanitizer build and leak check (macOS):
+
+```sh
+./build/qa-002-demo
+cmake -S . -B build-san -DCMAKE_BUILD_TYPE=Debug -DCMAKE_C_FLAGS='-fsanitize=address,undefined -fno-omit-frame-pointer' && cmake --build build-san
+leaks --atExit -- ./build/qa-002-demo
 ```
