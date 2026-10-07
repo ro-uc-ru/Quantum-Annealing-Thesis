@@ -6,6 +6,7 @@
 # Traceability: spec 001-states, task T01 (build scaffold).
 # Traceability: spec 002-hamiltonian, task T-002 (hamiltonian wiring).
 # Traceability: spec 003-schedules, task T-002 (schedules wiring).
+# Traceability: spec 004-driver, task T-003 (driver and io wiring).
 # Test naming contract, fixed here and consumed by T06-T10:
 #   - CTest test name: the `ctest -R` pattern required by tasks.md T06-T10
 #     (e.g. `001-states-n-gate`).
@@ -335,4 +336,199 @@ foreach(header IN LISTS QA_PUBLIC_HEADERS_003)
         003-schedules-${header_slug}-standalone
         003-schedules-${header_slug}-docs
         PROPERTIES LABELS "003-schedules;phase-1;header-gate")
+endforeach()
+
+# 004-driver Phase 1 wiring (task T-003, FR-005, FR-014). The driver joins the
+# existing `qa_hamiltonian` library (see its sources above); `driver.c` is a
+# placeholder translation unit that claims no behavior until Phase 2.
+target_sources(qa_hamiltonian PRIVATE src/hamiltonian/driver.c)
+
+# New static `qa_io` library holding the CSV writer (`src/io/config.c`,
+# T-010). `src/io` is a PRIVATE include directory so the private seam
+# `config-internal.h` is not part of the public interface.
+add_library(qa_io STATIC src/io/config.c)
+target_include_directories(qa_io PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)
+target_include_directories(qa_io PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src/io)
+target_link_libraries(qa_io PUBLIC qa_core)
+qa_configure_target(qa_io)
+
+# `results/` is created at configure time, never by the writer or the demo
+# (spec 004-driver §1). It is covered by the versioned `.gitignore`.
+file(MAKE_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/results)
+
+# 004-driver header test (task T-003): guards, self-containment and exact
+# signatures of both public headers plus the private writer seam. The private
+# `src/io` directory is added for this test only, so it can include
+# `config-internal.h`.
+add_executable(test-004-driver-header tests/hamiltonian/test-driver-header.c)
+target_link_libraries(test-004-driver-header PRIVATE qa_hamiltonian qa_io)
+target_include_directories(test-004-driver-header PRIVATE
+                           ${CMAKE_CURRENT_SOURCE_DIR}/src/io)
+qa_configure_target(test-004-driver-header)
+add_test(NAME 004-driver-header COMMAND test-004-driver-header)
+set_tests_properties(
+    004-driver-header
+    PROPERTIES LABELS "004-driver;phase-1")
+
+# 004-driver unit tests, Phase 3 (task T-004 onward, one group per CTest
+# entry). One binary; each tasks.md `ctest -R 004-driver-<group>` pattern
+# matches exactly one entry. Later groups append here.
+add_executable(test-004-driver tests/hamiltonian/test-driver.c)
+target_link_libraries(test-004-driver PRIVATE qa_hamiltonian)
+qa_configure_target(test-004-driver)
+add_test(NAME 004-driver-n-gate COMMAND test-004-driver n-gate)
+add_test(NAME 004-driver-shape COMMAND test-004-driver shape)
+add_test(NAME 004-driver-initial-state COMMAND test-004-driver initial-state)
+add_test(NAME 004-driver-domain COMMAND test-004-driver domain)
+add_test(NAME 004-driver-vectors COMMAND test-004-driver vectors)
+add_test(NAME 004-driver-properties COMMAND test-004-driver properties)
+add_test(NAME 004-driver-contract COMMAND test-004-driver contract)
+# FR-005 source gate: no heap call in the driver or the CSV writer (T-009).
+add_test(NAME 004-driver-no-heap
+         COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/scripts/check-no-heap.sh
+                 ${CMAKE_CURRENT_SOURCE_DIR}/src/hamiltonian/driver.c
+                 ${CMAKE_CURRENT_SOURCE_DIR}/src/io/config.c)
+# The gate itself must keep failing on a heap call: it runs on a fixture that
+# calls `malloc` and passes only when the script reports it (exit 2 for a
+# missing file prints another message and so fails this test).
+add_test(NAME 004-driver-no-heap-negative
+         COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/scripts/check-no-heap.sh
+                 ${CMAKE_CURRENT_SOURCE_DIR}/tests/hamiltonian/fixtures/heap-call.txt)
+set_tests_properties(004-driver-no-heap-negative PROPERTIES
+    PASS_REGULAR_EXPRESSION "check-no-heap: heap call in")
+set_tests_properties(
+    004-driver-n-gate
+    004-driver-shape
+    004-driver-initial-state
+    004-driver-domain
+    004-driver-vectors
+    004-driver-properties
+    004-driver-contract
+    004-driver-no-heap
+    004-driver-no-heap-negative
+    PROPERTIES LABELS "004-driver;phase-3")
+
+# 004-driver CSV writer tests, Phase 5 (task T-010 onward, one group per CTest
+# entry). One binary; each `ctest -R 004-driver-io-<group>` pattern matches
+# exactly one entry. The private `src/io` directory is added for this test so
+# it can inject fake operations through `config-internal.h`.
+add_executable(test-004-driver-io tests/io/test-config.c)
+target_link_libraries(test-004-driver-io PRIVATE qa_io)
+target_include_directories(test-004-driver-io PRIVATE
+                           ${CMAKE_CURRENT_SOURCE_DIR}/src/io)
+qa_configure_target(test-004-driver-io)
+add_test(NAME 004-driver-io-contract COMMAND test-004-driver-io contract)
+add_test(NAME 004-driver-io-range COMMAND test-004-driver-io range)
+add_test(NAME 004-driver-io-escape COMMAND test-004-driver-io escape)
+add_test(NAME 004-driver-io-failure COMMAND test-004-driver-io io-failure)
+set_tests_properties(
+    004-driver-io-contract
+    004-driver-io-range
+    004-driver-io-escape
+    004-driver-io-failure
+    PROPERTIES LABELS "004-driver;phase-5")
+
+# 001<->004 integration test, Phase 6 (task T-012, FR-012): board ids built
+# with the 001 grid helpers against the driver Hamiltonian.
+add_executable(test-004-integration tests/integration/test-004-integration.c)
+target_link_libraries(test-004-integration PRIVATE qa_hamiltonian)
+qa_configure_target(test-004-integration)
+add_test(NAME 004-driver-integration COMMAND test-004-integration)
+add_test(NAME 004-driver-integration-build-failure
+         COMMAND test-004-integration build-failure)
+set_tests_properties(
+    004-driver-integration
+    004-driver-integration-build-failure
+    PROPERTIES LABELS "004-driver;phase-6")
+
+# qa-004-demo (task T-013, FR-013, FR-014): the build metadata of the recorded
+# configuration is fixed at configure time (TST-4). A missing git yields the
+# non-empty fallback `unavailable`; the sha is that of the last configure.
+execute_process(COMMAND git rev-parse HEAD
+                WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+                OUTPUT_VARIABLE QA_GIT_SHA_VALUE
+                OUTPUT_STRIP_TRAILING_WHITESPACE
+                ERROR_QUIET RESULT_VARIABLE QA_GIT_RESULT)
+if(NOT QA_GIT_RESULT EQUAL 0 OR QA_GIT_SHA_VALUE STREQUAL "")
+    set(QA_GIT_SHA_VALUE "unavailable")
+endif()
+string(TOUPPER "${CMAKE_BUILD_TYPE}" QA_BUILD_TYPE_UPPER)
+string(STRIP "${CMAKE_C_FLAGS} ${CMAKE_C_FLAGS_${QA_BUILD_TYPE_UPPER}}"
+       QA_CMAKE_FLAGS_VALUE)
+set(QA_CMAKE_FLAGS_VALUE "build_type=${CMAKE_BUILD_TYPE} ${QA_CMAKE_FLAGS_VALUE}")
+add_executable(qa-004-demo src/cli/qa-004-demo.c)
+target_link_libraries(qa-004-demo PRIVATE qa_hamiltonian qa_io)
+target_compile_definitions(qa-004-demo PRIVATE
+    QA_GIT_SHA="${QA_GIT_SHA_VALUE}"
+    QA_CLANG_VERSION="${CMAKE_C_COMPILER_ID} ${CMAKE_C_COMPILER_VERSION}"
+    QA_CMAKE_FLAGS="${QA_CMAKE_FLAGS_VALUE}")
+qa_configure_target(qa-004-demo)
+
+# MEM-4 fault seams (task T-015): the same source rebuilt with one injected
+# fault each; these test-only executables are never installed or run alone.
+foreach(QA_FAULT 1 2 3 4 5)
+    add_executable(qa-004-demo-fault-${QA_FAULT} src/cli/qa-004-demo.c)
+    target_link_libraries(qa-004-demo-fault-${QA_FAULT} PRIVATE qa_hamiltonian qa_io)
+    target_compile_definitions(qa-004-demo-fault-${QA_FAULT} PRIVATE
+        QA_DEMO_FAULT=${QA_FAULT}
+        QA_GIT_SHA="${QA_GIT_SHA_VALUE}"
+        QA_CLANG_VERSION="${CMAKE_C_COMPILER_ID} ${CMAKE_C_COMPILER_VERSION}"
+        QA_CMAKE_FLAGS="${QA_CMAKE_FLAGS_VALUE}")
+    qa_configure_target(qa-004-demo-fault-${QA_FAULT})
+endforeach()
+
+# Demo tests (task T-013): a demo run writes a CSV (fixture setup) and the
+# read-back checker validates it (EC-020); a second test requires a non-zero
+# exit for a non-existent directory (EC-025).
+add_executable(test-004-demo tests/cli/test-004-demo.c)
+qa_configure_target(test-004-demo)
+add_test(NAME 004-driver-demo-run
+         COMMAND qa-004-demo ${CMAKE_CURRENT_BINARY_DIR}/004-config-test.csv)
+add_test(NAME 004-driver-config
+         COMMAND test-004-demo readback
+                 ${CMAKE_CURRENT_BINARY_DIR}/004-config-test.csv)
+add_test(NAME 004-driver-demo-failure
+         COMMAND test-004-demo exit-status $<TARGET_FILE:qa-004-demo>
+                 ${CMAKE_CURRENT_BINARY_DIR}/004-no-such-dir/out.csv)
+add_test(NAME 004-driver-demo-usage
+         COMMAND test-004-demo usage-status $<TARGET_FILE:qa-004-demo>)
+foreach(QA_FAULT 1 2 3 4 5)
+    add_test(NAME 004-driver-demo-fault-${QA_FAULT}
+             COMMAND test-004-demo exit-status
+                     $<TARGET_FILE:qa-004-demo-fault-${QA_FAULT}>
+                     ${CMAKE_CURRENT_BINARY_DIR}/004-fault-${QA_FAULT}.csv)
+    set_tests_properties(004-driver-demo-fault-${QA_FAULT}
+                         PROPERTIES LABELS "004-driver;phase-6")
+endforeach()
+set_tests_properties(004-driver-demo-run PROPERTIES FIXTURES_SETUP 004-demo-csv)
+set_tests_properties(004-driver-config PROPERTIES FIXTURES_REQUIRED 004-demo-csv)
+set_tests_properties(
+    004-driver-demo-run
+    004-driver-config
+    004-driver-demo-failure
+    004-driver-demo-usage
+    PROPERTIES LABELS "004-driver;phase-6")
+
+# 004-driver public-header gate (task T-003, Phase 1). Same contract as the
+# 001..003 gates (standalone compile + documentation check), with the
+# `004-driver-` prefix so `ctest -R 004-driver-<group>` patterns match exactly
+# one entry each. The private `config-internal.h` is not a public header.
+set(QA_PUBLIC_HEADERS_004
+    include/qa/hamiltonian/driver.h
+    include/qa/io/config.h)
+
+foreach(header IN LISTS QA_PUBLIC_HEADERS_004)
+    string(REGEX REPLACE "[/.]" "-" header_slug "${header}")
+    add_test(NAME 004-driver-${header_slug}-standalone
+             COMMAND ${CMAKE_C_COMPILER} -std=c17 -Wall -Wextra -Wpedantic
+                     -fsyntax-only
+                     -I${CMAKE_CURRENT_SOURCE_DIR}/include
+                     ${CMAKE_CURRENT_SOURCE_DIR}/${header})
+    add_test(NAME 004-driver-${header_slug}-docs
+             COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/scripts/check-header-docs.sh
+                     ${CMAKE_CURRENT_SOURCE_DIR}/${header})
+    set_tests_properties(
+        004-driver-${header_slug}-standalone
+        004-driver-${header_slug}-docs
+        PROPERTIES LABELS "004-driver;phase-1;header-gate")
 endforeach()

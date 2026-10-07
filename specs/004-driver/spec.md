@@ -196,7 +196,6 @@ be validated.
 - EC-012 IF `x`, `y` are orthonormal and `phi = (|x> + |y>) / sqrt(2)` is applied alongside separate
   `H|x>`, `H|y>`, THEN the results shall agree within `1e-12` (linearity).
   (FR-016, FR-009)
-- EC-013 (retired: repeats FR-005, which already requires `phi` unmodified; QA-9)
 - EC-014 IF any call fails, THEN the existing `outPsi` shall be unchanged
   (`+0.0` vs `-0.0` in zero outputs count as equal). (FR-002, FR-003, FR-006,
   FR-007, FR-008)
@@ -209,9 +208,6 @@ be validated.
 - EC-017 IF `qaHamiltonianInitialState` is applied to `outPsi` pre-filled with a
   canary and a precondition fails (N, pointer or dim), THEN the canary shall
   be bit-identical afterwards. (FR-002, FR-003, FR-006, FR-010)
-- EC-018 (retired: repeats FR-009, bit-identical outputs; QA-9)
-- EC-019 (retired: harness behavior, not a product boundary; its rule moved
-  into FR-012 after QA-7)
 - EC-020 IF the demo has run, THEN reading back `results/004-config.csv` shall
   yield exactly the FR-014 header and one row whose `spec_version`, `N`, `dim`,
   `vectors`, `seed`, `schedule` and `dt_steps` equal the demo's parameters and
@@ -273,20 +269,20 @@ be validated.
 
 ## 5. Definition of Done
 
-- [ ] FR-001..FR-016 covered by tests
-- [ ] EC-001..EC-029 covered by tests (EC-013, EC-018, EC-019 retired)
-- [ ] Strict debug build passes, `-Wall -Wextra -Werror`, zero warnings
+- [x] FR-001..FR-016 covered by tests
+- [x] EC-001..EC-029 (except removed IDs) covered by tests
+- [x] Strict debug build passes, `-Wall -Wextra -Werror`, zero warnings
   (`cmake -S . -B build -DCMAKE_BUILD_TYPE=Debug && cmake --build build`)
-- [ ] Full `ctest --test-dir build --output-on-failure` green, with
+- [x] Full `ctest --test-dir build --output-on-failure` green, with
   non-regression of 001, 002 and 003 tests
-- [ ] ASan+UBSan clean on the 004 tests and on `qa-004-demo`
-- [ ] Zero leaks on every 004 test and on `qa-004-demo` (representative N=4
+- [x] ASan+UBSan clean on the 004 tests and on `qa-004-demo`
+- [x] Zero leaks on every 004 test and on `qa-004-demo` (representative N=4
   run): `leaks --atExit` on macOS, LeakSanitizer on Linux
-- [ ] Numerical validation holds (eigen-equation `H|psi0> = -numCells |psi0>`,
+- [x] Numerical validation holds (eigen-equation `H|psi0> = -numCells |psi0>`,
   `|+>^n` eigenvalue `+numCells`, Hermiticity, norm bound, norm gate enforced)
-- [ ] `results/004-config.csv` present after the representative run from the
+- [x] `results/004-config.csv` present after the representative run from the
   project root, `v1`, with fields per FR-014
-- [ ] ARC-2 / ARC-6 documentation audit (`arc6-doc-auditor`) clean on the 004
+- [x] ARC-2 / ARC-6 documentation audit (`arc6-doc-auditor`) clean on the 004
   sources, tests and headers
 
 ## 6. Changelog
@@ -297,13 +293,13 @@ be validated.
   norm defined as `sqrt(<phi|phi>)` as in 002, sequential, no OpenMP, with
   EC-010 and new EC-026, plain summation kept with a pairwise fallback (QA-4); FR-014 header and row fixed, EC-020 made testable by
   read-back (QA-5); sign convention and `Z^(x n)` equivalence recorded (QA-6);
-  FR-012 reworked, EC-019 retired (QA-7); `dim` validated before pointers and
+  FR-012 reworked, EC-019 removed (QA-7); `dim` validated before pointers and
   overlap, FR-006/EC-003 updated (QA-8); FR-008 reworded as unwanted behavior
   (QA-10); `QA_ERR_OVERFLOW` removed from FR-003/EC-001 (QA-11); FR-005
   reworded, verification deferred to plan (QA-12); demo arguments and tolerance
   fixed and `psi0` formula fixed (QA-13); EC-014/EC-017 now cite FR-002 and
   FR-003 (QA-14). Round 1, QA-9: added FR-016 (mathematical properties,
-  tested by EC-009..EC-012, now citing it) and retired EC-013 and EC-018.
+  tested by EC-009..EC-012, now citing it) and removed EC-013 and EC-018.
 - 2026-10-06 Edits after QA review round 2: the writer only writes and the
   directory is created by the build setup, demo takes an optional output path
   (QA-15); writer contract completed with record, bounds, RFC 4180 escaping,

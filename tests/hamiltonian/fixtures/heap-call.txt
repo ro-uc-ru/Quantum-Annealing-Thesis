@@ -1,0 +1,17 @@
+/*
+ * Fixture for `004-driver-no-heap-negative` (spec 004-driver, FR-005, T-009).
+ *
+ * Purpose: a source with a heap call that `scripts/check-no-heap.sh` must
+ * report, proving the gate still fails when it should.
+ * Not compiled: the `.txt` extension keeps it out of every build target; it
+ * is only read, as input, by the gate script.
+ * Owner: the `malloc(1)` result is returned to a caller that does not exist
+ * and is deliberately never freed, because the code never runs.
+ * Errors: none handled, for the same reason.
+ * Assumes: the gate matches the call form `malloc(`; editing this file to
+ * hide that form makes the negative test fail, which is intended.
+ */
+void *fixtureHeapCall(void)
+{
+    return malloc(1);
+}

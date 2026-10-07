@@ -39,8 +39,9 @@ specification is approved.
 
 ## Status
 
-Specs `001-states`, `002-hamiltonian` and `003-schedules` are approved and
-fully implemented (all their tasks are ticked).
+Specs `001-states`, `002-hamiltonian`, `003-schedules` and `004-driver` are
+approved and fully implemented (all their tasks are ticked). There is no active
+spec at the moment.
 
 - `001-states`: `qa_core` static library with the shared `QaStatus` channel
   (`include/qa/core/status.h`) and the classical board grid helpers
@@ -52,8 +53,15 @@ fully implemented (all their tasks are ticked).
   trigonometric, degree-2 polynomial, exponential) as `a(t)` and `b(t)`
   (`include/qa/evolution/schedules.h`).
 
-The driver Hamiltonian, the split-operator evolution, `model` and `io` are not
-implemented yet.
+- `004-driver`: matrix-free transverse (driver) Hamiltonian
+  `H_driver = sum sigma^x` and the initial state `|->^n`, the ground state of
+  `H(0)` (`include/qa/hamiltonian/driver.h`, `src/hamiltonian/driver.c`); the
+  `qa_io` library with the CSV configuration writer
+  (`include/qa/io/config.h`, `src/io/config.c`); the `qa-004-demo` CLI
+  (representative N=4 run) and the versioned `results/004-config.csv`.
+
+The split-operator evolution and `model` are not implemented yet; `io` only
+holds the configuration CSV writer.
 
 Build and test:
 
@@ -65,7 +73,7 @@ ctest --test-dir build --output-on-failure
 Representative run, sanitizer build and leak check (macOS):
 
 ```sh
-./build/qa-002-demo
+./build/qa-004-demo
 cmake -S . -B build-san -DCMAKE_BUILD_TYPE=Debug -DCMAKE_C_FLAGS='-fsanitize=address,undefined -fno-omit-frame-pointer' && cmake --build build-san
-leaks --atExit -- ./build/qa-002-demo
+leaks --atExit -- ./build/qa-004-demo
 ```
