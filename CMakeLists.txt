@@ -7,6 +7,7 @@
 # Traceability: spec 002-hamiltonian, task T-002 (hamiltonian wiring).
 # Traceability: spec 003-schedules, task T-002 (schedules wiring).
 # Traceability: spec 004-driver, task T-003 (driver and io wiring).
+# Traceability: spec 005-evolution, task T-005 (headers and wiring).
 # Test naming contract, fixed here and consumed by T06-T10:
 #   - CTest test name: the `ctest -R` pattern required by tasks.md T06-T10
 #     (e.g. `001-states-n-gate`).
@@ -531,4 +532,217 @@ foreach(header IN LISTS QA_PUBLIC_HEADERS_004)
         004-driver-${header_slug}-standalone
         004-driver-${header_slug}-docs
         PROPERTIES LABELS "004-driver;phase-1;header-gate")
+endforeach()
+
+# 005-evolution Phase 1 wiring (task T-005, FR-016, FR-021). Placeholder
+# translation units only: each module file is implemented by the task named in
+# its own header comment, and replaces its placeholder body there.
+#
+# `qa_evolution` (Strang driver, primitives and time grid) links the 002 and 003
+# libraries and libm. The placeholders are the T-007, T-009 and T-010 files.
+add_library(qa_evolution STATIC
+    src/evolution/primitives.c
+    src/evolution/timegrid.c
+    src/evolution/evolve.c)
+target_include_directories(qa_evolution PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)
+target_link_libraries(qa_evolution PUBLIC qa_hamiltonian qa_schedules m)
+qa_configure_target(qa_evolution)
+
+# `qa_hamiltonian` gains `H_target(k)` (task T-006, FR-001, FR-016, FR-027) and
+# its test; the CTest name carries the tasks.md pattern `005-evolution-target`.
+target_sources(qa_hamiltonian PRIVATE src/hamiltonian/target.c)
+add_executable(test-005-target tests/hamiltonian/test-target.c)
+target_link_libraries(test-005-target PRIVATE qa_hamiltonian)
+qa_configure_target(test-005-target)
+add_test(NAME 005-evolution-target COMMAND test-005-target)
+set_tests_properties(
+    005-evolution-target
+    PROPERTIES LABELS "005-evolution;phase-2")
+
+# Primitive tests (task T-007 `dz`; task T-008 `rx`). One binary, one
+# CTest entry per group; the names carry the tasks.md pattern `005-evolution-<group>`.
+add_executable(test-005-primitives tests/evolution/test-primitives.c)
+target_link_libraries(test-005-primitives PRIVATE qa_evolution)
+qa_configure_target(test-005-primitives)
+add_test(NAME 005-evolution-dz COMMAND test-005-primitives dz)
+add_test(NAME 005-evolution-rx COMMAND test-005-primitives rx)
+set_tests_properties(
+    005-evolution-dz
+    005-evolution-rx
+    PROPERTIES LABELS "005-evolution;phase-3")
+
+# Time grid test (task T-009, FR-017, FR-026); CTest name `005-evolution-timegrid`.
+add_executable(test-005-timegrid tests/evolution/test-timegrid.c)
+target_link_libraries(test-005-timegrid PRIVATE qa_evolution)
+qa_configure_target(test-005-timegrid)
+add_test(NAME 005-evolution-timegrid COMMAND test-005-timegrid)
+set_tests_properties(
+    005-evolution-timegrid
+    PROPERTIES LABELS "005-evolution;phase-3")
+
+# `qa_io` gains the run record writers (`src/io/run.c`, T-013). The file joins
+# the existing library, so the 004 configuration writer is unchanged.
+target_sources(qa_io PRIVATE src/io/run.c)
+
+# Run writer tests (task T-013, FR-013, FR-014, FR-019, FR-025, EC-009, EC-017),
+# one CTest entry per group; the names carry the tasks.md pattern
+# `005-evolution-io`. `src/io` is private for the ops-table seam.
+add_executable(test-005-run tests/io/test-run.c)
+target_link_libraries(test-005-run PRIVATE qa_io)
+target_include_directories(test-005-run PRIVATE
+                           ${CMAKE_CURRENT_SOURCE_DIR}/src/io)
+qa_configure_target(test-005-run)
+foreach(group outdir layout config order failure)
+    add_test(NAME 005-evolution-io-${group} COMMAND test-005-run ${group})
+    set_tests_properties(005-evolution-io-${group}
+                         PROPERTIES LABELS "005-evolution;phase-5")
+endforeach()
+
+# `qa_cli_evolve` holds the CLI logic (parsing, `--out` check, summary, exit
+# codes; T-014) so that the CLI tests can call it without `main`. `qa-005-evolve`
+# is the thin `main` that links it.
+add_library(qa_cli_evolve STATIC src/cli/qa-005-evolve-cli.c)
+target_include_directories(qa_cli_evolve PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include
+                           ${CMAKE_CURRENT_SOURCE_DIR}/src/cli
+                           ${CMAKE_CURRENT_SOURCE_DIR}/src/evolution)
+target_link_libraries(qa_cli_evolve PUBLIC qa_evolution qa_io qa_hamiltonian
+                      qa_schedules)
+# Build metadata of `config.json` (TST-4, FR-014): the same configure-time
+# values as qa-004-demo, fixed when CMake configures (a missing git yields
+# `unavailable`).
+target_compile_definitions(qa_cli_evolve PRIVATE
+    QA_GIT_SHA="${QA_GIT_SHA_VALUE}"
+    QA_CLANG_VERSION="${CMAKE_C_COMPILER_ID} ${CMAKE_C_COMPILER_VERSION}"
+    QA_CMAKE_FLAGS="${QA_CMAKE_FLAGS_VALUE}")
+qa_configure_target(qa_cli_evolve)
+
+add_executable(qa-005-evolve src/cli/qa-005-evolve.c)
+target_link_libraries(qa-005-evolve PRIVATE qa_cli_evolve)
+qa_configure_target(qa-005-evolve)
+
+# CLI tests (task T-014, FR-006, FR-013..FR-015, EC-007, EC-009, EC-016, EC-017,
+# EC-020); one CTest entry per group, names carry `005-evolution-cli`. The
+# working directory of the tests is a scratch directory under the build tree.
+add_executable(test-005-cli tests/cli/test-evolve-cli.c)
+target_link_libraries(test-005-cli PRIVATE qa_cli_evolve)
+qa_configure_target(test-005-cli)
+foreach(group usage codes layout perturb)
+    add_test(NAME 005-evolution-cli-${group}
+             COMMAND test-005-cli ${group} ${CMAKE_CURRENT_BINARY_DIR})
+    set_tests_properties(005-evolution-cli-${group}
+                         PROPERTIES LABELS "005-evolution;phase-6")
+endforeach()
+
+# 005-evolution header test (task T-005): guards, double inclusion, the
+# constants, the struct members and the exact signatures of the four public
+# headers, plus the two private seams. Compile-time checks only, so the binary
+# links nothing; `src/io` and `src/evolution` are private include directories
+# for the two seams.
+add_executable(test-005-evolution-header tests/evolution/test-evolution-header.c)
+target_link_libraries(test-005-evolution-header PRIVATE qa_evolution qa_io)
+target_include_directories(test-005-evolution-header PRIVATE
+                           ${CMAKE_CURRENT_SOURCE_DIR}/src/io
+                           ${CMAKE_CURRENT_SOURCE_DIR}/src/evolution)
+qa_configure_target(test-005-evolution-header)
+add_test(NAME 005-evolution-header COMMAND test-005-evolution-header)
+set_tests_properties(
+    005-evolution-header
+    PROPERTIES LABELS "005-evolution;phase-1")
+
+# 005-evolution public-header gate (task T-005, Phase 1). Same contract as the
+# 001..004 gates (standalone compile as the first include, plus the
+# constitution §6 documentation check), with the `005-evolution-` prefix. The
+# private seams are not public headers and are not listed.
+set(QA_PUBLIC_HEADERS_005
+    include/qa/hamiltonian/target.h
+    include/qa/evolution/primitives.h
+    include/qa/evolution/evolve.h
+    include/qa/io/run.h)
+
+foreach(header IN LISTS QA_PUBLIC_HEADERS_005)
+    string(REGEX REPLACE "[/.]" "-" header_slug "${header}")
+    add_test(NAME 005-evolution-${header_slug}-standalone
+             COMMAND ${CMAKE_C_COMPILER} -std=c17 -Wall -Wextra -Wpedantic
+                     -fsyntax-only
+                     -I${CMAKE_CURRENT_SOURCE_DIR}/include
+                     ${CMAKE_CURRENT_SOURCE_DIR}/${header})
+    add_test(NAME 005-evolution-${header_slug}-docs
+             COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/scripts/check-header-docs.sh
+                     ${CMAKE_CURRENT_SOURCE_DIR}/${header})
+    set_tests_properties(
+        005-evolution-${header_slug}-standalone
+        005-evolution-${header_slug}-docs
+        PROPERTIES LABELS "005-evolution;phase-1;header-gate")
+endforeach()
+
+# Driver validation tests (task T-010, FR-016..FR-018, FR-020, FR-024). One
+# binary, one CTest entry per group; the names carry the tasks.md pattern
+# `005-evolution-validate`. `src/evolution` is private for the internal seam.
+add_executable(test-005-evolve tests/evolution/test-evolve.c)
+target_link_libraries(test-005-evolve PRIVATE qa_evolution)
+target_include_directories(test-005-evolve PRIVATE
+                           ${CMAKE_CURRENT_SOURCE_DIR}/src/evolution)
+qa_configure_target(test-005-evolve)
+foreach(group n-gate validation-order bounds initial-state)
+    add_test(NAME 005-evolution-validate-${group}
+             COMMAND test-005-evolve ${group})
+    set_tests_properties(005-evolution-validate-${group}
+                         PROPERTIES LABELS "005-evolution;phase-4")
+endforeach()
+
+# Strang loop tests (task T-011, FR-002, FR-005, FR-006, FR-010..FR-012,
+# FR-028); same binary, CTest names carry the pattern `005-evolution-evolve`.
+foreach(group steps1 norm snapshots callbacks repeat)
+    add_test(NAME 005-evolution-evolve-${group}
+             COMMAND test-005-evolve ${group})
+    set_tests_properties(005-evolution-evolve-${group}
+                         PROPERTIES LABELS "005-evolution;phase-4")
+endforeach()
+
+# Failure-path tests through the private ops table (task T-012, FR-006,
+# FR-019, FR-025, EC-010, EC-012, EC-020); CTest names carry the pattern
+# `005-evolution-failure`.
+foreach(group alloc schedule perturb)
+    add_test(NAME 005-evolution-failure-${group}
+             COMMAND test-005-evolve ${group})
+    set_tests_properties(005-evolution-failure-${group}
+                         PROPERTIES LABELS "005-evolution;phase-4")
+endforeach()
+
+# 005-evolution integration tests (task T-015, FR-007, FR-008, FR-023, EC-004,
+# EC-013); one CTest entry per group, names carry `005-evolution-integration`.
+# `src/cli` and `src/evolution` are private include directories for the CLI.
+add_executable(test-005-integration tests/integration/test-005-integration.c)
+target_link_libraries(test-005-integration PRIVATE qa_cli_evolve)
+qa_configure_target(test-005-integration)
+foreach(group convergence reference n4)
+    add_test(NAME 005-evolution-integration-${group}
+             COMMAND test-005-integration ${group})
+    set_tests_properties(005-evolution-integration-${group}
+                         PROPERTIES LABELS "005-evolution;phase-7")
+endforeach()
+add_test(NAME 005-evolution-integration-repeat
+         COMMAND test-005-integration repeat ${CMAKE_CURRENT_BINARY_DIR})
+set_tests_properties(005-evolution-integration-repeat
+                     PROPERTIES LABELS "005-evolution;phase-7")
+
+# 005-evolution source gates (task T-016, FR-001, FR-021, FR-028): no `io`
+# include, no dense matrix shape and no allocation outside the documented owner
+# under `src/evolution`. The three `planted` tests run the same script on
+# fixture directories holding one deliberate violation each and require the
+# script's own exit code for that class (1 io, 2 dense, 3 alloc), proving the
+# gate can fail for the right reason. The fixtures are never compiled.
+set(QA_GATE_005 ${CMAKE_CURRENT_SOURCE_DIR}/scripts/check-005-evolution-gate.sh)
+add_test(NAME 005-evolution-gate
+         COMMAND ${QA_GATE_005} ${CMAKE_CURRENT_SOURCE_DIR}/src/evolution)
+set_tests_properties(005-evolution-gate PROPERTIES LABELS "005-evolution;phase-7")
+set(QA_GATE_005_CODE_io 1)
+set(QA_GATE_005_CODE_dense 2)
+set(QA_GATE_005_CODE_alloc 3)
+foreach(kind io dense alloc)
+    add_test(NAME 005-evolution-gate-planted-${kind}
+             COMMAND sh -c
+             "${QA_GATE_005} ${CMAKE_CURRENT_SOURCE_DIR}/tests/evolution/gate-fixtures/${kind}; test $? -eq ${QA_GATE_005_CODE_${kind}}")
+    set_tests_properties(005-evolution-gate-planted-${kind}
+                         PROPERTIES LABELS "005-evolution;phase-7")
 endforeach()

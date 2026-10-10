@@ -1,0 +1,2 @@
+/usr/bin/ar qc libqa_evolution.a CMakeFiles/qa_evolution.dir/src/evolution/primitives.c.o CMakeFiles/qa_evolution.dir/src/evolution/timegrid.c.o CMakeFiles/qa_evolution.dir/src/evolution/evolve.c.o
+/usr/bin/ranlib libqa_evolution.a

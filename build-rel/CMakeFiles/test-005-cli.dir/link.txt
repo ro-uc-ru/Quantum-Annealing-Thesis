@@ -1,0 +1,1 @@
+/usr/bin/cc -O3 -DNDEBUG -arch arm64 -Wl,-search_paths_first -Wl,-headerpad_max_install_names "CMakeFiles/test-005-cli.dir/tests/cli/test-evolve-cli.c.o" -o test-005-cli  libqa_cli_evolve.a libqa_evolution.a libqa_io.a libqa_hamiltonian.a libqa_schedules.a -lm libqa_core.a

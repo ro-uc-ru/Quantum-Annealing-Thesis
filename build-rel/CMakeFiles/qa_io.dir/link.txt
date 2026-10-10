@@ -1,0 +1,2 @@
+/usr/bin/ar qc libqa_io.a CMakeFiles/qa_io.dir/src/io/config.c.o CMakeFiles/qa_io.dir/src/io/run.c.o
+/usr/bin/ranlib libqa_io.a

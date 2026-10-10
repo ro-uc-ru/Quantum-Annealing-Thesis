@@ -1,0 +1,2 @@
+/usr/bin/ar qc libqa_core.a CMakeFiles/qa_core.dir/src/core/grid.c.o
+/usr/bin/ranlib libqa_core.a

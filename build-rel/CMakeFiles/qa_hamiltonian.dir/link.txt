@@ -1,0 +1,2 @@
+/usr/bin/ar qc libqa_hamiltonian.a CMakeFiles/qa_hamiltonian.dir/src/hamiltonian/problem.c.o CMakeFiles/qa_hamiltonian.dir/src/hamiltonian/driver.c.o CMakeFiles/qa_hamiltonian.dir/src/hamiltonian/target.c.o
+/usr/bin/ranlib libqa_hamiltonian.a

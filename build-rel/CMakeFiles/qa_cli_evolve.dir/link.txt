@@ -1,0 +1,2 @@
+/usr/bin/ar qc libqa_cli_evolve.a "CMakeFiles/qa_cli_evolve.dir/src/cli/qa-005-evolve-cli.c.o"
+/usr/bin/ranlib libqa_cli_evolve.a

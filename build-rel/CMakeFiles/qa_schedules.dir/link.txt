@@ -1,0 +1,2 @@
+/usr/bin/ar qc libqa_schedules.a CMakeFiles/qa_schedules.dir/src/evolution/schedules/schedules.c.o
+/usr/bin/ranlib libqa_schedules.a

@@ -1,0 +1,1 @@
+/usr/bin/cc -O3 -DNDEBUG -arch arm64 -Wl,-search_paths_first -Wl,-headerpad_max_install_names "CMakeFiles/test-004-driver.dir/tests/hamiltonian/test-driver.c.o" -o test-004-driver  libqa_hamiltonian.a libqa_core.a

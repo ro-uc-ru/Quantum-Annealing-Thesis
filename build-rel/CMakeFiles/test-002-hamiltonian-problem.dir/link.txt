@@ -1,0 +1,1 @@
+/usr/bin/cc -O3 -DNDEBUG -arch arm64 -Wl,-search_paths_first -Wl,-headerpad_max_install_names "CMakeFiles/test-002-hamiltonian-problem.dir/tests/hamiltonian/test-problem.c.o" -o test-002-hamiltonian-problem  libqa_hamiltonian.a libqa_core.a
